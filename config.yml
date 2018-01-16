@@ -1,0 +1,8 @@
+sls:
+  Name: "kubernetes"
+  Endpoint: "cn-hangzhou-vpc.log.aliyuncs.com"
+  AccessKeyID: "AK"
+  AccessKeySecret: "SK"
+
+relay:
+  BindAddr: "0.0.0.0:233"

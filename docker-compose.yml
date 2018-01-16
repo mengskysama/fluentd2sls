@@ -1,0 +1,14 @@
+version: '2'
+services:
+    fluentd2sls:
+        restart: always
+        image: fluentd2sls:0.0.1
+        build:
+            context: .
+            dockerfile: Dockerfile
+        ports:
+            - 233:233/udp
+        volumes:
+            - ./config.yml:/opt/fluentd2sls/config.yml
+        command:
+            ./fluentd2sls -f config.yml
