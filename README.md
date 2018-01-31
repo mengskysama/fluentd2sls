@@ -27,13 +27,13 @@
 |     syslog parser    |                                     |
 +----------------------+                                     |
 |           |                                                |
-|           | 3.parser to sls format                         |
+|           | 3.parser json format                           |
 |           |                                                |
 +-----------v----------+                                     |
-|    DockerLogParser    |                                    |
+|    DockerLogParser   |                                     |
 +----------------------+                                     |
 |           |                                                |
-|           | 4.parser to sls format                         |
+|           | 4.send to sls                                  |
 |           |                                                |
 +-----------v----------+                                     |
 |   aliyun-log-go-sdk  |                                     |
@@ -52,7 +52,7 @@
 | -------  |:--:| :--:|
 | parser   | 1x | 4x  |
 | sls sdk  | 1x | 18x |
-| 1 deployment 1500req/s  | 5% CPU | 75% CPU |
+| 1 deployment 1500req/s  | ~75% CPU | ~8% CPU |
 
 ## Try it
 Install fluentd-pilot in your k8s cluster, set env like `192.168.50.78` replace fluentd2sls host.
@@ -76,9 +76,9 @@ Prerequisites:
 - Create a loghub project named `kubernetes`.
 
 ```
-git clone THIS PROJECT
+git clone https://github.com/mengskysama/fluentd2sls
 
-vim config.yml
+edit fluentd-pilot config.yml
 sls:
   Name: "kubernetes"
   Endpoint: "cn-hangzhou-vpc.log.aliyuncs.com"
@@ -91,7 +91,22 @@ relay:
 
 docker-compose build
 docker-compose up
+
+Config nginx deployment log to stdout with json format
+ln -sf /dev/stdout /var/log/nginx/access.log
+
+edit nginx.conf
+
+    log_format mixed    '{"remote_addr":"$remote_addr", "local_time":"$time_local",'
+                        '"request":"$request","status":"$status","body_bytes_sent":"$body_bytes_sent",'
+                        '"http_referer":"$http_referer","http_user_agent":"$http_user_agent",'
+                        '"host":"$host","request_time":"$request_time"}';
+    access_log   /var/log/nginx/access.log mixed;
+
+note: DockerLogParser will parser local_time from nginx time_local format
+In common you can get a new Logstore deployment in loghub kubernetes.
 ```
+
 
 ## Related projects
 

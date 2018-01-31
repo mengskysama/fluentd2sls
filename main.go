@@ -1,11 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 
 	sls "github.com/aliyun/aliyun-log-go-sdk"
+	"github.com/json-iterator/go"
 	log "github.com/thinkboy/log4go"
 	"gopkg.in/mcuadros/go-syslog.v2"
 	"gopkg.in/yaml.v2"
@@ -60,6 +60,7 @@ func LoadConfig(filePath string) (err error) {
 // RegisterRelay Register and return a relay
 func RegisterRelay(logstoreName string) (relay *Relay, err error) {
 	relayLock.Lock()
+	defer relayLock.Unlock()
 	exists := false
 	relay, exists = relays[logstoreName]
 	if !exists {
@@ -71,13 +72,13 @@ func RegisterRelay(logstoreName string) (relay *Relay, err error) {
 		relays[logstoreName] = relay
 		log.Debug("revice %s register relay success", logstoreName)
 	}
-	relayLock.Unlock()
 	return
 }
 
 // UnRegisterRelay Register and return a relay
 func UnRegisterRelay(logstoreName string) (err error) {
 	relayLock.Lock()
+	defer relayLock.Unlock()
 	relay, exists := relays[logstoreName]
 	if !exists {
 		log.Warn("relay %s UnRegisterRelay fail not exist", logstoreName)
@@ -85,7 +86,6 @@ func UnRegisterRelay(logstoreName string) (err error) {
 	}
 	close(relay.recvClosing)
 	delete(relays, logstoreName)
-	relayLock.Unlock()
 	return
 }
 
@@ -98,7 +98,7 @@ func ProcessSysLog(data string) (err error) {
 	s = s[p2+1:]
 
 	msg := &SyslogMessage{}
-	err = json.Unmarshal([]byte(s), &msg)
+	err = jsoniter.Unmarshal([]byte(s), &msg)
 	if err != nil {
 		return errors.New("message is not json")
 	}
