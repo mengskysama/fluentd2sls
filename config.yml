@@ -6,3 +6,6 @@ sls:
 
 relay:
   BindAddr: "0.0.0.0:233"
+  Protocol: "RFC3164"
+  LogLevel: "DEBUG"
+ 
