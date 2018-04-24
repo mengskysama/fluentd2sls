@@ -27,6 +27,8 @@ type Config struct {
 	}
 	Relay struct {
 		BindAddr string `yaml:"BindAddr"`
+		Protocol string `yaml:"Protocol"`
+		LogLevel string `yaml:"LogLevel"`
 	}
 }
 
@@ -70,7 +72,7 @@ func RegisterRelay(logstoreName string) (relay *Relay, err error) {
 			return
 		}
 		relays[logstoreName] = relay
-		log.Debug("revice %s register relay success", logstoreName)
+		log.Info("revice %s register relay success", logstoreName)
 	}
 	return
 }
@@ -90,7 +92,7 @@ func UnRegisterRelay(logstoreName string) (err error) {
 }
 
 // ProcessSysLog for recv data from syslog
-func ProcessSysLog(data string) (err error) {
+func ProcessSysLogRFC3164(data string) (err error) {
 	// data := `2017-12-07T04:17:28Z	fluentd-pilot	{"log":"{\"type\": \"access\", \"remote_addr\": \"::ffff:172.16.6.49\", \"time\":\"2017-12-07T04:17:28.922Z\", \"method\": \"GET\", \"uri\": \"/health\", \"version\": \"1.1\", \"status\": 200, \"length\": 25, \"referrer\": \"-\", \"user-agent\": \"stress 1.0\", \"request_time\": 0.130}\n","stream":"stdout","@timestamp":"2017-12-07T04:17:28.951","host":"fluentd-pilot-s85mg","@target":"k8skoatemplate","docker_container":"k8s_k8s-koa-template_k8s-koa-template-7c749b67fd-tzztz_default_81f0941f-d98a-11e7-9d87-00163e0da962_0","k8s_pod":"k8s-koa-template-7c749b67fd-tzztz"}`)
 	p1 := strings.Index(data, "\t")
 	s := data[p1+1:]
@@ -100,6 +102,29 @@ func ProcessSysLog(data string) (err error) {
 	msg := &SyslogMessage{}
 	err = jsoniter.Unmarshal([]byte(s), &msg)
 	if err != nil {
+		log.Warn("message is not json", s)
+		return errors.New("message is not json")
+	}
+
+	relay, err := RegisterRelay(msg.Target)
+	if err != nil {
+		return errors.New("RegisterRelay failed")
+	}
+
+	select {
+	case relay.recvFromSysLog <- msg:
+		return
+	case <-time.After(time.Millisecond * time.Duration(100)):
+		return log.Error("relay %s buffer is full?", msg.Target)
+	}
+}
+
+// ProcessSysLog for recv data from syslog
+func ProcessSysLogRFC5424(data string) (err error) {
+	msg := &SyslogMessage{}
+	err = jsoniter.Unmarshal([]byte(data), &msg)
+	if err != nil {
+		log.Warn("message is not json", data)
 		return errors.New("message is not json")
 	}
 
@@ -123,18 +148,27 @@ func init() {
 func main() {
 	defer time.Sleep(time.Second * 1)
 
-	log.Debug("fluentd2sls v0.0.1")
 	flagConfigPath := flag.String("f", "config.yml", "config path")
 	flag.Parse()
 	if err := LoadConfig(*flagConfigPath); err != nil {
 		return
 	}
 
+	if config.Relay.LogLevel != "DEBUG" {
+		log.AddFilter("stdout", log.INFO, log.NewConsoleLogWriter())
+	}
+
+	log.Info("fluentd2sls v0.1")
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	channel := make(syslog.LogPartsChannel)
 	handler := syslog.NewChannelHandler(channel)
 	server := syslog.NewServer()
-	server.SetFormat(syslog.RFC3164)
+	if config.Relay.Protocol == "RFC5424" {
+		server.SetFormat(syslog.RFC5424)
+	} else {
+		server.SetFormat(syslog.RFC3164)
+	}
 	server.SetHandler(handler)
 	if err := server.ListenUDP(config.Relay.BindAddr); err != nil {
 		log.Error("%s", err)
@@ -142,16 +176,29 @@ func main() {
 	}
 	server.Boot()
 
-	go func(channel syslog.LogPartsChannel) {
-		// TODO
-		// coroutine * NumCPU
-		for logParts := range channel {
-			err := ProcessSysLog(logParts["content"].(string))
-			if err != nil {
-				log.Warn("process syslog error %s", err)
+	if config.Relay.Protocol == "RFC5424" {
+		go func(channel syslog.LogPartsChannel) {
+			// TODO
+			// coroutine * NumCPU
+			for logParts := range channel {
+				err := ProcessSysLogRFC5424(logParts["message"].(string))
+				if err != nil {
+					log.Warn("process syslog error %s", err)
+				}
 			}
-		}
-	}(channel)
+		}(channel)
+	} else {
+		go func(channel syslog.LogPartsChannel) {
+			// TODO
+			// coroutine * NumCPU
+			for logParts := range channel {
+				err := ProcessSysLogRFC3164(logParts["content"].(string))
+				if err != nil {
+					log.Warn("process syslog error %s", err)
+				}
+			}
+		}(channel)
+	}
 
 	server.Wait()
 }

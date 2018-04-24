@@ -2,7 +2,7 @@ version: '2'
 services:
     fluentd2sls:
         restart: always
-        image: fluentd2sls:0.0.1
+        image: fluentd2sls:0.1
         build:
             context: .
             dockerfile: Dockerfile

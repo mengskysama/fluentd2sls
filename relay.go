@@ -50,10 +50,10 @@ func NewRelay(logstoreName string) (relay *Relay, err error) {
 		stage = 0
 		err = project.CreateLogStore(logstoreName, 1, 2)
 		if err != nil {
-			log.Debug("call CreateLogStore %s fail.", logstoreName)
+			log.Warn("call CreateLogStore %s fail.", logstoreName)
 			return
 		}
-		log.Debug("CreateLogStore %s success.", logstoreName)
+		log.Warn("CreateLogStore %s success.", logstoreName)
 		logstore, err = project.GetLogStore(logstoreName)
 		// TODO:
 		// Creating few seconds couldn't write
@@ -86,7 +86,7 @@ func (r *Relay) run() {
 				idx++
 			case <-r.recvClosing:
 				timer.Stop()
-				log.Debug("relay %s closed.", r.logstoreName)
+				log.Info("relay %s closed.", r.logstoreName)
 				return
 			case <-timer.C:
 				break
@@ -94,7 +94,7 @@ func (r *Relay) run() {
 			if idx == 0 {
 				timeoutTimes++
 				if timeoutTimes > RELAY_TIMEOIT_TIMES {
-					log.Debug("relay %s not recived message closed.", r.logstoreName)
+					log.Info("relay %s not recived message closed.", r.logstoreName)
 					UnRegisterRelay(r.logstoreName)
 				}
 				t = time.Now().Unix()
@@ -129,10 +129,10 @@ func (r *Relay) writeLogToSls(syslogMessages []*SyslogMessage) (err error) {
 
 	err = r.logstore.PutLogs(loggroup)
 	if err != nil {
-		log.Debug("PutLogs [%s] fail, err: %s", r.logstoreName, err)
+		log.Warn("PutLogs [%s] fail, err: %s", r.logstoreName, err)
 		return
 	}
 
-	log.Debug("PutLogs [%s] success cnt %d", r.logstoreName, len(syslogMessages))
+	log.Warn("PutLogs [%s] success cnt %d", r.logstoreName, len(syslogMessages))
 	return
 }
