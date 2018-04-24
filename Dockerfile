@@ -1,7 +1,5 @@
 FROM golang:alpine3.6
 
-#RUN echo "219.76.4.78 gopkg.in" > /etc/hosts
-
 RUN printf "http://mirrors.aliyun.com/alpine/v3.6/community\nhttp://mirrors.aliyun.com/alpine/v3.6/main\n" > /etc/apk/repositories  && \
   apk add --update --no-cache git && \
   go get gopkg.in/mcuadros/go-syslog.v2 && \
