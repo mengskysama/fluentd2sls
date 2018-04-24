@@ -74,6 +74,7 @@ Prerequisites:
 - Due performance reason DO NOT run in docker with production env.
 - Create a ram account with full sls permission in aliyun console, get `AccessKeyID` and `AccessKeySecret`.
 - Create a loghub project named `kubernetes`.
+- Protocol tested with `RFC3164` (fluent-plugin-remote_syslog v 0.3.3) and `RFC5424` (fluent-plugin-remote_syslog-5424 v 0.1.1), `RFC3164` message must less than 1024byte.
 
 ```
 git clone https://github.com/mengskysama/fluentd2sls
@@ -89,8 +90,6 @@ relay:
   BindAddr: "0.0.0.0:233"
   Protocol: "RFC3164"
   LogLevel: "DEBUG"
-
-Protocol tested with `RFC3164` (fluent-plugin-remote_syslog v 0.3.3) and `RFC5424` (fluent-plugin-remote_syslog-5424 v 0.1.1), `RFC3164` message must limit less than 1024byte.
 
 docker-compose build
 docker-compose up
